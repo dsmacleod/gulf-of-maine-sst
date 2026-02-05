@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How warm is the Gulf of Maine? — Bangor Daily News</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Oswald:wght@200;400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Open Sans', Georgia, serif;
+    background: #f5f5f0;
+    color: #111;
+    line-height: 1.5;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3rem;
+  }
+
+  /* Header */
+  .masthead {
+    text-align: center;
+    border-bottom: 3px double #00331b;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  .masthead .section-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: #04723f;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  .masthead h1 {
+    font-family: 'Oswald', Helvetica, sans-serif;
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    font-weight: 400;
+    line-height: 1.15;
+    color: #00331b;
+    margin-bottom: 0.35rem;
+  }
+  .masthead .dek {
+    font-size: 1rem;
+    color: #555;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* Callout cards */
+  .callout-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .callout {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-top: 3px solid #04723f;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+  }
+  .callout .label {
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: #777;
+    margin-bottom: 0.25rem;
+  }
+  .callout .value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .callout .context {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.2rem;
+  }
+  .callout .value.warm { color: #c99410; }
+  .callout .value.cool { color: #04723f; }
+  .callout .value.neutral { color: #00331b; }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.8rem;
+  }
+  .controls span.controls-label {
+    font-weight: 600;
+    color: #555;
+    font-size: 0.78rem;
+  }
+  .decade-btn {
+    padding: 0.3rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-family: 'Open Sans', Georgia, serif;
+    transition: all 0.15s;
+  }
+  .decade-btn:hover { border-color: #04723f; color: #04723f; }
+  .decade-btn.active {
+    background: #04723f;
+    color: #fff;
+    border-color: #04723f;
+  }
+
+  /* Chart */
+  .chart-wrap {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 1rem 0.5rem 0.5rem;
+    position: relative;
+  }
+  .chart-wrap svg { display: block; }
+
+  /* Tooltip */
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(255,255,255,0.96);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    display: none;
+    z-index: 10;
+    max-width: 240px;
+  }
+  .tooltip .tt-date { font-weight: 700; margin-bottom: 0.25rem; }
+  .tooltip .tt-row { display: flex; align-items: center; gap: 0.4rem; }
+  .tooltip .tt-swatch {
+    width: 10px; height: 3px; border-radius: 1px; flex-shrink: 0;
+  }
+  .tooltip .tt-label { color: #666; }
+  .tooltip .tt-val { font-weight: 600; margin-left: auto; }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    font-size: 0.75rem;
+    color: #666;
+    padding-left: 0.5rem;
+  }
+  .legend-item { display: flex; align-items: center; gap: 0.35rem; }
+  .legend-swatch {
+    width: 18px; height: 3px; border-radius: 1px;
+  }
+  .legend-band {
+    width: 18px; height: 10px; border-radius: 2px;
+    background: rgba(100,100,100,0.12);
+    border: 1px solid rgba(100,100,100,0.2);
+  }
+
+  /* Footer */
+  .source {
+    margin-top: 1rem;
+    font-size: 0.72rem;
+    color: #999;
+    line-height: 1.6;
+  }
+  .source a { color: #04723f; }
+
+  .loading {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: #888;
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 600px) {
+    .container { padding: 1.25rem 1rem 2rem; }
+    .callout-row { grid-template-columns: 1fr 1fr; }
+    .callout .value { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="masthead">
+    <h1>How warm is the Gulf of Maine?</h1>
+    <p class="dek">Daily sea-surface temperatures since 1981, updated automatically. The Gulf of Maine is one of the fastest-warming bodies of water on Earth.</p>
+  </header>
+
+  <div class="callout-row" id="callouts">
+    <div class="loading">Loading data&hellip;</div>
+  </div>
+
+  <div class="controls" id="controls" style="display:none;">
+    <span class="controls-label">Highlight:</span>
+    <button class="decade-btn active" data-decade="all">All Years</button>
+    <button class="decade-btn" data-decade="1980">1980s</button>
+    <button class="decade-btn" data-decade="1990">1990s</button>
+    <button class="decade-btn" data-decade="2000">2000s</button>
+    <button class="decade-btn" data-decade="2010">2010s</button>
+    <button class="decade-btn" data-decade="2020">2020s</button>
+  </div>
+
+  <div class="chart-wrap" id="chart-wrap">
+    <div id="chart"></div>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="source">
+    Data: NOAA OISST v2.1 via <a href="https://climatereanalyzer.org/clim/sst_daily/" target="_blank">Climate Reanalyzer</a>, University of Maine Climate Change Institute. Updated daily with a 1–2 day lag. Temperatures are area-weighted daily means for the Gulf of Maine.
+  </div>
+</div>
+
+<script>
+// For production, use the direct URL (host HTML on same domain or set up a proxy):
+// const DATA_URL = "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_gom_sst_day.json";
+// For local development, serve both files from a local HTTP server:
+const DATA_URL = "gom_sst.json";
+
+// Month labels for x-axis
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_DAYS = [0,31,59,90,120,151,181,212,243,273,304,334,366];
+
+// Color palette — BDN forest green + gold theme
+const CURRENT_YEAR_COLOR = "#c99410";
+const PREV_YEAR_COLOR = "#f1bc38";
+const MEAN_COLOR = "#00331b";
+
+const DECADE_COLORS = {
+  1980: "#b4d6c1",
+  1990: "#7fbf96",
+  2000: "#4a9e6b",
+  2010: "#1a7a42",
+  2020: "#c99410"
+};
+
+function dayOfYear(date) {
+  const start = new Date(date.getFullYear(), 0, 0);
+  const diff = date - start;
+  return Math.floor(diff / 86400000);
+}
+
+function formatDate(dayIndex) {
+  // dayIndex is 0-based (day 0 = Jan 1)
+  const d = new Date(2024, 0, 1); // use leap year for mapping
+  d.setDate(d.getDate() + dayIndex);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function toF(c) {
+  return c !== null && c !== undefined ? (c * 9/5 + 32) : null;
+}
+
+async function init() {
+  let raw;
+  try {
+    const resp = await fetch(DATA_URL);
+    raw = await resp.json();
+  } catch (e) {
+    document.getElementById("callouts").innerHTML =
+      `<div class="loading">Failed to load data. <a href="${DATA_URL}" target="_blank">Try direct link.</a></div>`;
+    return;
+  }
+
+  // Parse into structured data
+  const years = [];
+  let meanSeries = null, meanLabel = "";
+  let prelimSeries = null;
+
+  for (const series of raw) {
+    const name = series.name;
+    if (name === "Preliminary") {
+      prelimSeries = series.data;
+    } else if (name.match(/^\d{4}-\d{4}/)) {
+      // Climatology baseline — prefer the more recent one (1991-2020)
+      if (!meanSeries || name > meanLabel) {
+        meanSeries = series.data;
+        meanLabel = name;
+      }
+    } else {
+      const yr = parseInt(name);
+      if (!isNaN(yr)) {
+        years.push({ year: yr, data: series.data });
+      }
+    }
+  }
+
+  years.sort((a, b) => a.year - b.year);
+
+  const todayDOY = dayOfYear(new Date()) - 1; // 0-indexed
+
+  // Find the most recent year with data, and the one before it
+  const latestYearData = years[years.length - 1];
+  const displayYear = latestYearData.year;
+  const prevYearData = years.length >= 2 ? years[years.length - 2] : null;
+  const prevYear = prevYearData ? prevYearData.year : null;
+  // Find latest data point — check preliminary data first (most recent), then finalized
+  let latestDOY, latestTemp, isPrelim = false;
+  if (prelimSeries) {
+    latestDOY = prelimSeries.length - 1;
+    while (latestDOY >= 0 && prelimSeries[latestDOY] === null) latestDOY--;
+    if (latestDOY >= 0) {
+      latestTemp = prelimSeries[latestDOY];
+      isPrelim = true;
+    }
+  }
+  if (!isPrelim || latestTemp === null || latestTemp === undefined) {
+    latestDOY = latestYearData.data.length - 1;
+    while (latestDOY >= 0 && latestYearData.data[latestDOY] === null) latestDOY--;
+    latestTemp = latestYearData.data[latestDOY];
+    isPrelim = false;
+  }
+
+  const latestMean = meanSeries ? meanSeries[latestDOY] : null;
+  const anomaly = (latestTemp !== null && latestMean !== null) ? latestTemp - latestMean : null;
+
+  // Rank this day's temperature against all years
+  const sameDayTemps = years
+    .map(y => ({ year: y.year, val: y.data[latestDOY] }))
+    .filter(d => d.val !== null)
+    .sort((a, b) => b.val - a.val);
+  const rank = sameDayTemps.findIndex(d => d.year === displayYear) + 1;
+  const totalYears = sameDayTemps.length;
+
+  // Warmest year for this day
+  const warmestForDay = sameDayTemps[0];
+
+  // Build callout cards
+  const anomalyClass = anomaly > 0 ? "warm" : anomaly < 0 ? "cool" : "neutral";
+  const anomalySign = anomaly > 0 ? "+" : "";
+
+  document.getElementById("callouts").innerHTML = `
+    <div class="callout">
+      <div class="label">Latest reading · ${formatDate(latestDOY)}${isPrelim ? " (preliminary)" : ""}</div>
+      <div class="value ${anomalyClass}">${latestTemp !== null ? toF(latestTemp).toFixed(1) + "°F" : "—"}</div>
+      <div class="context">${latestTemp !== null ? latestTemp.toFixed(2) + "°C" : ""}</div>
+    </div>
+    <div class="callout">
+      <div class="label">Vs. ${meanLabel} average</div>
+      <div class="value ${anomalyClass}">${anomaly !== null ? anomalySign + toF(anomaly).toFixed(1) + "°F" : "—"}</div>
+      <div class="context">${anomaly !== null ? anomalySign + anomaly.toFixed(2) + "°C" : ""}</div>
+    </div>
+    <div class="callout">
+      <div class="label">Rank for this date</div>
+      <div class="value ${rank <= 3 ? "warm" : "neutral"}">${rank ? "#" + rank : "—"}</div>
+      <div class="context">of ${totalYears} years on record</div>
+    </div>
+    <div class="callout">
+      <div class="label">Warmest on this date</div>
+      <div class="value neutral">${warmestForDay ? warmestForDay.year : "—"}</div>
+      <div class="context">${warmestForDay ? toF(warmestForDay.val).toFixed(1) + "°F / " + warmestForDay.val.toFixed(2) + "°C" : ""}</div>
+    </div>
+  `;
+
+  // --- D3 Chart ---
+  const wrap = document.getElementById("chart-wrap");
+  const margin = { top: 16, right: 55, bottom: 32, left: 48 };
+  const width = wrap.clientWidth - margin.left - margin.right;
+  const height = Math.min(460, Math.max(300, window.innerHeight * 0.45));
+
+  const svg = d3.select("#chart")
+    .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom);
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // Scales
+  const x = d3.scaleLinear().domain([0, 365]).range([0, width]);
+  const allVals = years.flatMap(y => y.data.filter(v => v !== null));
+  const yMin = d3.min(allVals) - 0.5;
+  const yMax = d3.max(allVals) + 0.5;
+  const y = d3.scaleLinear().domain([yMin, yMax]).range([height, 0]);
+
+  // Fahrenheit scale on right
+  const yF = d3.scaleLinear().domain([toF(yMin), toF(yMax)]).range([height, 0]);
+
+  // x-axis (months)
+  const xAxis = g.append("g")
+    .attr("transform", `translate(0,${height})`)
+    .call(
+      d3.axisBottom(x)
+        .tickValues(MONTH_DAYS.slice(0, 12))
+        .tickFormat((d, i) => MONTHS[i])
+        .tickSize(-height)
+    );
+  xAxis.select(".domain").remove();
+  xAxis.selectAll(".tick line").attr("stroke", "#e8e8e8");
+  xAxis.selectAll(".tick text").attr("fill", "#888").attr("font-size", "0.72rem");
+
+  // y-axis left (°C)
+  const yAxisL = g.append("g")
+    .call(d3.axisLeft(y).ticks(8).tickSize(-width).tickFormat(d => d + "°"));
+  yAxisL.select(".domain").remove();
+  yAxisL.selectAll(".tick line").attr("stroke", "#e8e8e8");
+  yAxisL.selectAll(".tick text").attr("fill", "#888").attr("font-size", "0.72rem");
+
+  // y-axis right (°F)
+  const yAxisR = g.append("g")
+    .attr("transform", `translate(${width},0)`)
+    .call(d3.axisRight(yF).ticks(8).tickFormat(d => d + "°F"));
+  yAxisR.select(".domain").remove();
+  yAxisR.selectAll(".tick line").remove();
+  yAxisR.selectAll(".tick text").attr("fill", "#888").attr("font-size", "0.72rem");
+
+  // Mean line
+  if (meanSeries) {
+    const meanData = meanSeries.map((v, i) => ({ day: i, val: v })).filter(d => d.val !== null);
+    g.append("path")
+      .datum(meanData)
+      .attr("fill", "none")
+      .attr("stroke", MEAN_COLOR)
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "4,3")
+      .attr("d", d3.line().x(d => x(d.day)).y(d => y(d.val)));
+  }
+
+  // Line generator
+  const line = d3.line()
+    .defined(d => d.val !== null)
+    .x(d => x(d.day))
+    .y(d => y(d.val));
+
+  // Year lines group
+  const linesGroup = g.append("g").attr("class", "year-lines");
+
+  function decadeOf(yr) { return Math.floor(yr / 10) * 10; }
+
+  function getLineColor(yr, decade) {
+    return DECADE_COLORS[decadeOf(yr)] || "#ccc";
+  }
+
+  function drawLines(activeDecade) {
+    linesGroup.selectAll("*").remove();
+
+    // Background years
+    for (const yr of years) {
+      if (yr.year === displayYear || yr.year === prevYear) continue;
+      const pts = yr.data.map((v, i) => ({ day: i, val: v }));
+      const show = activeDecade === "all" || decadeOf(yr.year) === parseInt(activeDecade);
+      linesGroup.append("path")
+        .datum(pts)
+        .attr("fill", "none")
+        .attr("stroke", show ? getLineColor(yr.year) : "#e0e0e0")
+        .attr("stroke-width", show ? 1 : 0.5)
+        .attr("opacity", show ? 0.55 : 0.25)
+        .attr("d", line)
+        .attr("data-year", yr.year);
+    }
+
+    // Previous year
+    const prevData = prevYear ? years.find(yr => yr.year === prevYear) : null;
+    if (prevData) {
+      const pts = prevData.data.map((v, i) => ({ day: i, val: v }));
+      linesGroup.append("path")
+        .datum(pts)
+        .attr("fill", "none")
+        .attr("stroke", PREV_YEAR_COLOR)
+        .attr("stroke-width", 2.2)
+        .attr("d", line)
+        .attr("data-year", prevYear);
+    }
+
+    // Current year (on top)
+    const curData = years.find(yr => yr.year === displayYear);
+    if (curData) {
+      const pts = curData.data.map((v, i) => ({ day: i, val: v }));
+      linesGroup.append("path")
+        .datum(pts)
+        .attr("fill", "none")
+        .attr("stroke", CURRENT_YEAR_COLOR)
+        .attr("stroke-width", 2.8)
+        .attr("d", line)
+        .attr("data-year", displayYear);
+    }
+
+    // Preliminary data (dashed extension of current year)
+    if (prelimSeries) {
+      const pts = prelimSeries.map((v, i) => ({ day: i, val: v }));
+      linesGroup.append("path")
+        .datum(pts)
+        .attr("fill", "none")
+        .attr("stroke", CURRENT_YEAR_COLOR)
+        .attr("stroke-width", 2)
+        .attr("stroke-dasharray", "5,3")
+        .attr("opacity", 0.7)
+        .attr("d", line);
+    }
+  }
+
+  drawLines("all");
+
+  // Hover crosshair + tooltip
+  const crosshair = g.append("line")
+    .attr("stroke", "#aaa")
+    .attr("stroke-width", 0.5)
+    .attr("stroke-dasharray", "3,3")
+    .attr("y1", 0).attr("y2", height)
+    .style("display", "none");
+
+  const hoverDots = g.append("g");
+
+  const overlay = g.append("rect")
+    .attr("width", width).attr("height", height)
+    .attr("fill", "none")
+    .attr("pointer-events", "all");
+
+  const tooltip = document.getElementById("tooltip");
+
+  overlay.on("mousemove touchmove", function(event) {
+    const [mx] = d3.pointer(event);
+    const dayIdx = Math.round(x.invert(mx));
+    if (dayIdx < 0 || dayIdx > 365) return;
+
+    crosshair.attr("x1", x(dayIdx)).attr("x2", x(dayIdx)).style("display", null);
+
+    // Gather values for this day
+    const entries = [];
+    const curYr = years.find(yr => yr.year === displayYear);
+    const prvYr = years.find(yr => yr.year === prevYear);
+    const meanVal = meanSeries ? meanSeries[dayIdx] : null;
+
+    if (curYr && curYr.data[dayIdx] !== null)
+      entries.push({ label: displayYear, val: curYr.data[dayIdx], color: CURRENT_YEAR_COLOR });
+    else if (prelimSeries && prelimSeries[dayIdx] !== null)
+      entries.push({ label: displayYear + " (prelim)", val: prelimSeries[dayIdx], color: CURRENT_YEAR_COLOR });
+    if (prvYr && prvYr.data[dayIdx] !== null)
+      entries.push({ label: prevYear, val: prvYr.data[dayIdx], color: PREV_YEAR_COLOR });
+    if (meanVal !== null)
+      entries.push({ label: meanLabel.replace("-", "–") + " avg", val: meanVal, color: MEAN_COLOR });
+
+    // Dots
+    hoverDots.selectAll("*").remove();
+    for (const e of entries) {
+      hoverDots.append("circle")
+        .attr("cx", x(dayIdx)).attr("cy", y(e.val))
+        .attr("r", 3.5).attr("fill", e.color).attr("stroke", "#fff").attr("stroke-width", 1);
+    }
+
+    // Tooltip content
+    let html = `<div class="tt-date">${formatDate(dayIdx)}</div>`;
+    for (const e of entries) {
+      html += `<div class="tt-row">
+        <span class="tt-swatch" style="background:${e.color}"></span>
+        <span class="tt-label">${e.label}</span>
+        <span class="tt-val">${toF(e.val).toFixed(1)}°F <span style="color:#999;font-weight:400">${e.val.toFixed(2)}°C</span></span>
+      </div>`;
+    }
+
+    tooltip.innerHTML = html;
+    tooltip.style.display = "block";
+
+    // Position tooltip
+    const chartRect = document.getElementById("chart-wrap").getBoundingClientRect();
+    const ttWidth = tooltip.offsetWidth;
+    let left = margin.left + x(dayIdx) + 14;
+    if (left + ttWidth > chartRect.width - 10) left = margin.left + x(dayIdx) - ttWidth - 14;
+    tooltip.style.left = left + "px";
+    tooltip.style.top = (margin.top + y(entries[0]?.val ?? 10) - 10) + "px";
+  });
+
+  overlay.on("mouseleave touchend", function() {
+    crosshair.style("display", "none");
+    hoverDots.selectAll("*").remove();
+    tooltip.style.display = "none";
+  });
+
+  // Decade buttons
+  const controls = document.getElementById("controls");
+  controls.style.display = "flex";
+
+  controls.querySelectorAll(".decade-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      controls.querySelectorAll(".decade-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      drawLines(btn.dataset.decade);
+    });
+  });
+
+  // Legend
+  const prettyMeanLabel = meanLabel.replace("-", "–");
+  document.getElementById("legend").innerHTML = `
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:${CURRENT_YEAR_COLOR};height:3px;"></span>
+      <span>${displayYear}</span>
+    </div>
+    ${prelimSeries ? `<div class="legend-item">
+      <span class="legend-swatch" style="background:${CURRENT_YEAR_COLOR};height:2px;border-top:2px dashed ${CURRENT_YEAR_COLOR};background:none;"></span>
+      <span>${displayYear} preliminary</span>
+    </div>` : ""}
+    ${prevYear ? `<div class="legend-item">
+      <span class="legend-swatch" style="background:${PREV_YEAR_COLOR};height:3px;"></span>
+      <span>${prevYear}</span>
+    </div>` : ""}
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:${MEAN_COLOR};height:2px;border-top:1px dashed ${MEAN_COLOR};background:none;"></span>
+      <span>${prettyMeanLabel} average</span>
+    </div>
+  `;
+
+}
+
+// Responsive resize (set up once, outside init)
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    document.getElementById("chart").innerHTML = "";
+    document.getElementById("legend").innerHTML = "";
+    init();
+  }, 250);
+});
+
+init();
+</script>
+</body>
+</html>
